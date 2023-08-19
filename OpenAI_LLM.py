@@ -1,8 +1,12 @@
 import openai
+import os
 from langchain.llms.base import LLM
 from typing import Dict, List, Optional, Tuple, Union
+from dotenv import find_dotenv, load_dotenv
 
-openai.api_key='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'
+_ = load_dotenv(find_dotenv())
+
+openai.api_key = os.environ["OPENAI_API_KEY"]
 
 def get_completion(prompt, model="gpt-3.5-turbo"):
     '''

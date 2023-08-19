@@ -1,0 +1,6 @@
+langchin
+openai
+kor
+tiktoken
+tqdm
+dotenv
