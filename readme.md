@@ -106,7 +106,7 @@ class OpenAI_LLM(LLM):
             id="dialogue",
             description="The dialogue spoken by the characters in the sentence",
         )
-    ]
+]
 ```
 
 - 输出示例：
@@ -127,7 +127,7 @@ class OpenAI_LLM(LLM):
                 {"role": "克莱恩", "dialogue": "是的，我需要一个美好的梦境，午餐之前都不要叫醒我。"},
                 {"role": "梅丽莎", "dialogue":"我和班森上午要去圣赛琳娜教堂做祈祷，参与弥撒，午餐可能会迟一点。"}
             ],
-        )
+)
 ```
 
 - 完整代码
