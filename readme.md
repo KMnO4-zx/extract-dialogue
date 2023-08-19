@@ -96,7 +96,7 @@ class OpenAI_LLM(LLM):
 
 - 信息描述：
 
-```json
+```
 [
         Text(
             id="role",
@@ -111,7 +111,7 @@ class OpenAI_LLM(LLM):
 
 - 输出示例：
 
-```json
+```
 (
             '''
             他下意识放轻了脚步，不制造出明显的噪音。
