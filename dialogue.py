@@ -2,7 +2,7 @@ from OpenAI_LLM import OpenAI_LLM
 from kor.extraction import create_extraction_chain
 from kor.nodes import Object, Text, Number
 import tiktoken
-import json
+import json, time, jsonlines
 from tqdm import tqdm
 enc = tiktoken.get_encoding("cl100k_base")
 
@@ -22,31 +22,20 @@ schema = Object(
     examples=[
         (
             '''
-            他下意识放轻了脚步，不制造出明显的噪音。
-            刚登上二楼，他看见盥洗室的门突然打开，穿着旧布长裙的梅丽莎一副睡眼惺忪的模样出来。
-            “你回来了……”梅丽莎还有些迷糊地揉了揉眼睛。
-            克莱恩掩住嘴巴，打了个哈欠道：
-            “是的，我需要一个美好的梦境，午餐之前都不要叫醒我。”
-            梅丽莎“嗯”了一声，忽然想起什么似地说道：
-            “我和班森上午要去圣赛琳娜教堂做祈祷，参与弥撒，午餐可能会迟一点。”
+            龙王说∶“再也没有比这更重的兵器了。”悟空不信，和龙王吵了起来，龙婆给龙王说∶“大禹治水时，测定海水深浅的神珍铁最近总是放光，就把这给他，管他能不能用，打发他走算了。”龙王听后告诉悟空∶“这宝物太重了，你自己去取吧！”
             ''',
             [
-                {"role": "梅丽莎", "dialogue": "你回来了……"},
-                {"role": "克莱恩", "dialogue": "是的，我需要一个美好的梦境，午餐之前都不要叫醒我。"},
-                {"role": "梅丽莎", "dialogue":"我和班森上午要去圣赛琳娜教堂做祈祷，参与弥撒，午餐可能会迟一点。"}
+                {"role": "龙王", "dialogue": "再也没有比这更重的兵器了。"},
+                {"role": "龙婆", "dialogue": "大禹治水时，测定海水深浅的神珍铁最近总是放光，就把这给他，管他能不能用，打发他走算了。”龙王听后告诉悟空∶“这宝物太重了，你自己去取吧！"},
             ],
         ),
         (
             '''
-            “太感谢您了！‘愚者’先生您真是太慷慨了！”奥黛丽欣喜地回应道。
-            她为自己刚才想用金钱购买消息的庸俗忏悔了三秒。
-            克莱恩停止手指的敲动，语气平淡地描述道：
-            “第一个常识，非凡特性不灭定律，非凡特性不会毁灭，不会减少，只是从一个事物转移到另一个事物。”
-            我不知不觉竟然用上了队长的口吻……克莱恩的嘴角下意识就翘了起来。
+            悟空见八戒这么长时间不回来，就拔根毫毛变成自己，陪着师父和沙僧，真身驾云来到山凹里，见八戒和妖精正在交战，便高声叫道∶“八戒别慌，老孙来了！”八戒一听，来了精神，没几下，就把那群妖怪打败了。
             ''',
             [
-                {"role": "奥黛丽", "dialogue": "太感谢您了！‘愚者’先生您真是太慷慨了！"},
-                {"role": "克莱恩", "dialogue": "第一个常识，非凡特性不灭定律，非凡特性不会毁灭，不会减少，只是从一个事物转移到另一个事物。"},
+                {"role": "悟空", "dialogue": "八戒别慌，老孙来了！"},
+                # {"role": "克莱恩", "dialogue": "第一个常识，非凡特性不灭定律，非凡特性不会毁灭，不会减少，只是从一个事物转移到另一个事物。"},
             ],
         )
     ],
@@ -59,8 +48,8 @@ def read_text(path):
 
 def save_data(data):
     filename = path.split('/')[-1].split('.')[0]
-    with open(f"./output/{filename}.jsonl", mode='a', encoding='utf-8') as f:
-        f.write(json.dumps(data,ensure_ascii=False,indent=4)+'\n')
+    with jsonlines.open(f"./output/{filename}.jsonl", mode='a') as f:
+        f.write(data)
 
 
 def get_chunk(text):
@@ -102,21 +91,29 @@ chain = create_extraction_chain(llm, schema)
 # chunk_list = chunk_text_by_tokens(read_text('test.txt'), 1000)
 
 def run(text):
-    try:
-        response = chain.run(text)
-    except Exception as e:
-        print(e)
+    max_attempts = 3  # 最大尝试次数
+    current_attempt = 1
+    while current_attempt < max_attempts:
+        try:
+            response = chain.run(text)
+        except Exception as e:
+            print(e)
+        else:
+            break
+        finally:
+            print(f"第 {current_attempt} 次尝试完成。")
+            current_attempt += 1
 
     if 'script' in response['data']:
         for item in response['data']['script']:
             print(item)
-            save_data(item)
+            save_data(json.dumps(item))
     else:
         passs
 
 
 if __name__ == "__main__":
-    path = 'test.txt'
+    path = '西游记白话文.txt'
     llm = OpenAI_LLM()
     chain = create_extraction_chain(llm, schema)
     chunk_list = get_chunk(read_text(path))
