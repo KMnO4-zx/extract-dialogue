@@ -1,5 +1,9 @@
 # Extract Dialogue
 
+>***本仓库只为`huanhuan-chat`泛化版的一部分内容（文本对话抽取），欢迎大家给`huanhuan-chat`仓库star！本仓库的最大贡献就是为泛化的Character AI提供了从小说中建立数据集的功能。***
+>
+>`huanhuan-chat: https://github.com/KMnO4-zx/huanhuan-chat.git`
+
 ## Show
 
 `repo`：https://github.com/KMnO4-zx/extract-dialogue.git
