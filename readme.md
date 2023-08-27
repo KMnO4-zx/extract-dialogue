@@ -22,8 +22,9 @@
 - 克隆仓库并切换目录：`git clone https://github.com/KMnO4-zx/extract-dialogue.git `，`cd extract-dialogue`
 
 - 安装依赖：`pip install -r requirements.txt`
-- 在当前目录创建`.env`文件，并填入`OPENAI_API_KEY`
-- 把你要提取的小说或文本，放到当前目录，在`main.py`中修改`path`
+- 在当前目录创建`.env`文件，并填入`OPENAI_API_KEY`。（***需要一个不限制请求次数的key，openai对于免费帐户的api限制为：每分钟请求至多请求三次，每天至多请求200次。对于从小说中提取对话来说，一天200次杯水车薪。***）
+- 把你要提取的小说或文本，放到当前目录，在`main.py`中修改`path`。
+- ***强烈建议您结合要提取的小说修改`main.py`中的`schema`示例。在下面的部分中有详细介绍`schema`。***
 - 运行`main.py`，`python main.py`
 
 > ***注意：gpt3.5收费标准2000token 0.002美元，提取一本小说花费大概在5美刀。***
