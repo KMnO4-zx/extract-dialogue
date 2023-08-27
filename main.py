@@ -2,7 +2,7 @@ from OpenAI_LLM import OpenAI_LLM
 from kor.extraction import create_extraction_chain
 from kor.nodes import Object, Text, Number
 import tiktoken
-import json, time, jsonlines
+import json, time
 from tqdm import tqdm
 enc = tiktoken.get_encoding("cl100k_base")
 
@@ -35,7 +35,6 @@ schema = Object(
             ''',
             [
                 {"role": "悟空", "dialogue": "八戒别慌，老孙来了！"},
-                # {"role": "克莱恩", "dialogue": "第一个常识，非凡特性不灭定律，非凡特性不会毁灭，不会减少，只是从一个事物转移到另一个事物。"},
             ],
         )
     ],
@@ -48,8 +47,8 @@ def read_text(path):
 
 def save_data(data):
     filename = path.split('/')[-1].split('.')[0]
-    with jsonlines.open(f"./output/{filename}.jsonl", mode='a') as f:
-        f.write(data)
+    with open(f"./output/{filename}.jsonl", mode='a', encoding='utf-8') as f:
+        f.write(json.dumps(data, ensure_ascii=False) + '\n')
 
 
 def get_chunk(text):
@@ -85,17 +84,12 @@ def get_chunk(text):
     return chunk_text
 
 
-llm = OpenAI_LLM()
-chain = create_extraction_chain(llm, schema)
-
-# chunk_list = chunk_text_by_tokens(read_text('test.txt'), 1000)
-
-def run(text):
+def run(chains, text):
     max_attempts = 3  # 最大尝试次数
     current_attempt = 1
     while current_attempt < max_attempts:
         try:
-            response = chain.run(text)
+            response = chains.run(text)
         except Exception as e:
             print(e)
         else:
@@ -106,19 +100,62 @@ def run(text):
 
     if 'script' in response['data']:
         for item in response['data']['script']:
-            print(item)
-            save_data(json.dumps(item))
+            # print(item)
+            save_data(item)
     else:
-        passs
+        pass
+
+def read_dialogue(path):
+    # path:字符串形式
+    filename = path.split('/')[-1].split('.')[0]
+    res = []
+    with open(f"./output/{filename}.jsonl", mode='r', encoding='utf-8') as file:
+        for line in file.readlines():
+            res.append(json.loads(line))
+    return res
+
+def save_dataset(path, data):
+    filename = path.split('/')[-1].split('.')[0]
+    with open(f"./output/{filename}.json", mode='w', encoding='utf-8') as f:
+        f.write(json.dumps(data, ensure_ascii=False))
+
+def generate_dataset(data, roles):
+    # data:接受完整的对话数据集，列表形式
+    # roles:需要提取的对话角色。列表形式
+    res = []
+    for i in tqdm(range(1, len(data))):
+        role = data[i]['role']
+        if role in roles:
+            tmp = {
+                "instruction": data[i-1]['dialogue'],
+                "input": "",
+                "output": data[i]['dialogue']
+            }
+            res.append(tmp)
+    return res
 
 
-if __name__ == "__main__":
-    path = '西游记白话文.txt'
-    llm = OpenAI_LLM()
-    chain = create_extraction_chain(llm, schema)
-    chunk_list = get_chunk(read_text(path))
-    for i in tqdm(range(len(chunk_list))):
-        try:
-            run(chunk_list[i])
-        except Exception as e:
-            print(e)
+#####################################################
+# CONFIG
+path = 'test.txt'  # 小说路径
+roles = ['克莱恩', '小克']  # 要提取的角色名称
+
+# CODE
+# 1、从小说中提取对话数据集，并将jsonl文件存入output目录
+llm = OpenAI_LLM()
+chain = create_extraction_chain(llm, schema)
+chunk_list = get_chunk(read_text(path))
+print('======================================抽取对话======================================')
+for i in tqdm(range(len(chunk_list))):
+    try:
+        run(chain, chunk_list[i])
+    except Exception as e:
+        print(e)
+# 2、将提取好的对话数据集，改造成微调数据集
+print('======================================抽取完成，构造数据集======================================')
+dialogue_list = read_dialogue(path)
+print(f"共有 {len(dialogue_list)} 条对话样本")
+dataset = generate_dataset(dialogue_list, roles)
+print(f"获得 {len(dataset)} 条微调样本")
+save_dataset(path, dataset)
+print('======================================构造完成======================================')

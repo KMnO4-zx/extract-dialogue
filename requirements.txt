@@ -1,6 +1,6 @@
-langchin
+langchain
 openai
 kor
 tiktoken
 tqdm
-dotenv
+python-dotenv
