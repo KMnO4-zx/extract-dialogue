@@ -1,0 +1,46 @@
+Your goal is to extract structured information from the user's input that matches the form described below. When extracting information please make sure it matches the type information exactly. Do not add any attributes that do not appear in the schema shown below.
+
+```TypeScript
+
+script: Array<{ // Adapted from the novel into script
+ role: string // The character who is speaking
+ dialogue: string // The dialogue spoken by the characters in the sentence
+}>
+```
+
+
+Please output the extracted information in JSON format in Excel dialect. 
+ Do NOT add any clarifying information. Output MUST follow the schema above. Do NOT add any additional columns that do not appear in the schema.
+
+
+
+Input: 
+他下意识放轻了脚步，不制造出明显的噪音。
+刚登上二楼，他看见盥洗室的门突然打开，穿着旧布长裙的梅丽莎一副睡眼惺忪的模样出来。
+“你回来了……”梅丽莎还有些迷糊地揉了揉眼睛。
+克莱恩掩住嘴巴，打了个哈欠道：
+“是的，我需要一个美好的梦境，午餐之前都不要叫醒我。”
+梅丽莎“嗯”了一声，忽然想起什么似地说道：
+“我和班森上午要去圣赛琳娜教堂做祈祷，参与弥撒，午餐可能会迟一点。”
+Output:
+[
+    {"role": "梅丽莎", "dialogue": "你回来了……"},
+	{"role": "克莱恩", "dialogue": "是的，我需要一个美好的梦境，午餐之前都不要叫醒我。"},
+	{"role": "梅丽莎", "dialogue": "我和班森上午要去圣赛琳娜教堂做祈祷，参与弥撒，午餐可能会迟一点。"},
+]
+
+Input: 
+“正义小姐说她清晰感受到魔药消化的迹象了，也许再有三四周，她就能完成‘观众’的扮演……‘读心者’的配方得提上日程了……”擦干净身体的克莱恩将毛巾放到一旁，边穿贴身衣物，边想着前天“塔罗会”上的事情。
+
+这近二十天里，他只约达斯特.古德里安医生见过一面，本着欲速不达的想法，只聊了聊对方的状态，问了问心理炼金会一些无关紧要的事情。
+
+而“正义”消化魔药的速度，让他不得不提前琢磨怎么从达斯特那里得到序列8“读心者”配方。
+
+一颗一颗扣好衬衣纽扣，克莱恩又拿起另一块干毛巾，用它包住头部，吸收短发上的水分。
+
+和“正义”相比，他消化“占卜家”魔药的速度只快不慢，到这周，冥想和灵视状态时已经没再出现听见不该听见声音，看见不该看见场景的事情了。
+
+反过毛巾，克莱恩又擦了擦头发，抬头望向门口，无声自语道：
+
+“我总结的‘占卜家守则’确实有效，下周……下周应该就能彻底消化掉魔药了……‘小丑’配方里的霍纳奇斯灰山羊独角结晶和人脸玫瑰还不知道去哪里弄……也许可以学戴莉女士，提交特别申请……但那样肯定会被上层关注……我现在只想猥琐发育……极光会在警察部门发展的信徒也被找到了，但还是不知道Z先生是谁……”
+Output:
