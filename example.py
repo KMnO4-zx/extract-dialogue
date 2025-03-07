@@ -7,7 +7,7 @@ import json
 
 
 file_path = './data/test.txt'
-docs = ReadFiles(file_path).get_content(max_token_len=500, cover_content=0)
+docs = ReadFiles(file_path).get_content(max_token_len=600, cover_content=50)
 
 sys_prompt = system_prompt(novel_schema)
 

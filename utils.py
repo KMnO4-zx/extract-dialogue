@@ -34,6 +34,9 @@ class ReadFiles:
     
     @classmethod
     def get_chunk(cls, text: str, max_token_len: int = 600, cover_content: int = 150):
+        
+        if cover_content == 0:
+            raise ValueError("cover_content cannot be 0")
         chunk_text = []
 
         curr_len = 0
@@ -60,9 +63,11 @@ class ReadFiles:
                     curr_chunk = curr_chunk[-cover_content:] + line[start:end]
                     chunk_text.append(curr_chunk)
                 # 处理最后一个块
-                start = (num_chunks - 1) * token_len
-                curr_chunk = curr_chunk[-cover_content:] + line[start:end]
+                start = (num_chunks) * token_len
+                curr_chunk = curr_chunk[-cover_content:] + line[start:line_len]
                 chunk_text.append(curr_chunk)
+                curr_len = 0
+                continue
                 
             if curr_len + line_len <= token_len:
                 curr_chunk += line
