@@ -37,11 +37,31 @@ conda create --name my_env --file spec-file.txt
 pip install -r requirements.txt
 ```
 
-
-
 - 将文本放到`data`目录内，文本文件名为**英文**，文内编码格式为`utf-8`。
 
 - 将`config_pub.ini`更改为`config.ini`，并配置好参数。运行`start.py`脚本进行处理文本，得到的数据在`output`目录内。
+
+  ```python
+  [settings]
+  # API key for authentication
+  api_key = {api_key}
+  # Base URL of the API service
+  base_url = {base_url}
+  # Output file path for storing results
+  file_name = ./output/elaina.json
+  # Input file path containing the data to process
+  file_path = ./data/mnzl.txt
+  
+  [progress]
+  # The starting index for processing, useful for resuming progress
+  start_idx = 0
+  # Maximum token length allowed for each API request
+  max_token_len = 600
+  # Number of tokens to overlap between consecutive text chunks
+  cover_content = 50
+  ```
+
+  
 
   挂后台运行：
 
