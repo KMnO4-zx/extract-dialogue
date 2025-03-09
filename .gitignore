@@ -136,3 +136,7 @@ dmypy.json
 .pyre/
 
 .idea
+
+mnzl.txt
+config.ini
+example.ipynb

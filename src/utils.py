@@ -14,7 +14,7 @@ from typing import Dict, List, Optional, Tuple, Union
 from tqdm import tqdm
 import tiktoken
 import re
-
+import sys
 enc = tiktoken.get_encoding("cl100k_base")
 
 class ReadFiles:

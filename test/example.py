@@ -1,13 +1,13 @@
-from extract import system_prompt
-from schema import novel_schema
-from LLM import DeepseekChat
-from utils import ReadFiles
+from src.extract import system_prompt
+from src.schema import novel_schema
+from src.LLM import DeepseekChat
+from src.utils import ReadFiles
 from tqdm import tqdm
 import json
 
 
-file_path = './data/test.txt'
-docs = ReadFiles(file_path).get_content(max_token_len=600, cover_content=50)
+file_path = './test/test.txt'
+docs = ReadFiles(file_path).get_content(max_token_len=500, cover_content=0)
 
 sys_prompt = system_prompt(novel_schema)
 

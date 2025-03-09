@@ -14,6 +14,13 @@ from typing import Dict, List, Optional, Tuple, Union
 from openai import OpenAI
 
 from dotenv import load_dotenv, find_dotenv
+import configparser as cp
+config = cp.ConfigParser()
+config.read('config.ini')
+
+api_key = config.get('settings', 'api_key')
+base_url = config.get('settings', 'base_url')
+
 _ = load_dotenv(find_dotenv())
 
 
@@ -34,7 +41,7 @@ class DeepseekChat(BaseModel):
         self.model = model
 
     def chat(self, system_prompt: str, user_prompt: str) -> str:
-        client = OpenAI(api_key=os.getenv('DEEPSEEK_API'), base_url=os.getenv('DEEPSEEK_BASE_URL'))
+        client = OpenAI(api_key=api_key, base_url=base_url)
         response = client.chat.completions.create(
             model="deepseek-chat",
             messages=[
@@ -44,4 +51,5 @@ class DeepseekChat(BaseModel):
             temperature=0.7,
             stream=False
         )
+        # print(response)
         return response.choices[0].message.content
