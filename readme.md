@@ -1,3 +1,5 @@
+# extract-dialogue-MajoTabi
+
 本仓库fork了[KMnO4-zx/extract-dialogue: 从小说中提取对话数据集 (github.com)](https://github.com/KMnO4-zx/extract-dialogue/tree/master)仓库用来提取轻小说《魔女之旅》中的伊雷娜对话信息，之后处理成Alpaca格式供以微调。
 
 已从轻小说中提取2万＋的对话集，之后手动处理了二百条数据。
@@ -13,6 +15,29 @@
 > 3. 需要手动处理的信息放置`config.ini`中
 
 **⚠️ 本项目不包含任何小说原文，仅提供数据处理代码。使用者需自行确保数据来源合法性。**
+
+克隆项目：
+
+```shell
+git clone git@github.com:golitter/extract-dialogue-MajoTabi.git
+```
+
+进入项目主目录：
+
+```shell
+cd extract-dialogue-MajoTabi-master/
+```
+
+环境配置：
+
+```shell
+# conda
+conda create --name my_env --file spec-file.txt
+# pip 
+pip install -r requirements.txt
+```
+
+
 
 - 将文本放到`data`目录内，文本文件名为**英文**，文内编码格式为`utf-8`。
 
