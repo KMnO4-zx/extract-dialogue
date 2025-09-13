@@ -136,3 +136,5 @@ dmypy.json
 .pyre/
 
 .idea
+
+CLAUDE.md
