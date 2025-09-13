@@ -1,4 +1,7 @@
-# Extract Dialogue
+<div align='center'>
+    <img src="./images/head.png" alt="alt text" width="80%">
+    <h1>Extract Dialogue</h1>
+</div>
 
 >***本仓库为`huanhuan-chat`泛化版的一部分（文本对话抽取），欢迎大家给`huanhuan-chat`仓库star！本仓库的最大贡献就是为泛化的Character AI提供了从小说中建立数据集的功能。***
 >
