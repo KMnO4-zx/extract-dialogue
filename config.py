@@ -137,7 +137,7 @@ class Config:
         cls.CURRENT_PLATFORM = platform
     
     # 文本处理配置
-    MAX_TOKEN_LEN = 500
+    MAX_TOKEN_LEN = 2000
     COVER_CONTENT = 50
     ENCODING = "cl100k_base"
     

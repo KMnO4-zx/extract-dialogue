@@ -229,83 +229,141 @@ class DialogueExtractor:
         )
     
     def _read_text_file(self, file_path: str) -> str:
-        """读取文本文件"""
-        try:
-            with open(file_path, 'r', encoding='utf-8') as file:
-                return file.read()
-        except Exception as e:
-            logger.error(f"读取文件失败 {file_path}: {e}")
-            raise
+        """读取文本文件（自动检测编码）"""
+        # 按常见优先级尝试多种编码
+        for encoding in ['utf-8', 'gbk', 'gb18030', 'gb2312', 'latin-1']:
+            try:
+                with open(file_path, 'r', encoding=encoding) as file:
+                    text = file.read()
+                    logger.info(f"文件编码: {encoding}")
+                    return text
+            except (UnicodeDecodeError, UnicodeError):
+                continue
+        # 兜底：忽略无法解码的字符
+        logger.warning("无法自动检测编码，使用 utf-8 容错模式")
+        with open(file_path, 'r', encoding='utf-8', errors='ignore') as file:
+            return file.read()
     
-    def _chunk_text(self, text: str) -> List[str]:
+    def _chunk_text(self, text: str):
         """
-        优化的文本分块算法
-        减少重复对话，提高分块质量
+        流式分块算法（低内存，写入临时文件）
+        返回 (临时文件路径, 总块数)
         """
-        chunks = []
-        lines = text.split('\n')
+        import tempfile
+        import gc
         
-        current_chunk = ""
-        current_tokens = 0
+        lines = text.split('\n')
         
         # 预处理：清理空行和多余空格
         cleaned_lines = []
         for line in lines:
             cleaned = line.strip()
-            if cleaned:  # 只保留非空行
+            if cleaned:
                 cleaned_lines.append(cleaned)
+        del lines  # 释放原始行列表
         
+        total_lines = len(cleaned_lines)
+        logger.info(f"预处理完成：{total_lines} 行，开始计算 token 数...")
+        
+        # 预计算所有行的 token 数
+        line_tokens_list = []
+        for line in tqdm(cleaned_lines, desc="计算行token数", unit="行"):
+            line_tokens_list.append(len(self.encoder.encode(line)))
+        
+        logger.info(f"Token 计算完成，开始流式分块（写入磁盘，低内存）...")
+        
+        # 创建临时文件写入分块结果
+        tmp = tempfile.NamedTemporaryFile(mode='w', suffix='.jsonl',
+                                           encoding='utf-8', delete=False)
+        chunks_file = tmp.name
+        total_chunks = 0
+        
+        # 用 list 代替字符串拼接，避免大量中间字符串对象
+        current_lines = []
+        current_tokens = 0
         i = 0
-        while i < len(cleaned_lines):
+        pbar = tqdm(total=total_lines, desc="文本分块", unit="行")
+        
+        def _write_chunk(lines_list):
+            nonlocal total_chunks
+            if lines_list:
+                chunk_text = "\n".join(lines_list)
+                tmp.write(json.dumps(chunk_text, ensure_ascii=False) + '\n')
+                total_chunks += 1
+        
+        while i < total_lines:
             line = cleaned_lines[i]
-            line_tokens = len(self.encoder.encode(line))
+            line_tokens = line_tokens_list[i]
             
-            # 如果单行超过限制，强制分割
+            # 每 1000 行更新一次进度条（批量更新，不卡）
+            if i % 1000 == 0 or i == total_lines - 1:
+                pbar.n = i
+                pbar.set_postfix({'块数': total_chunks})
+                pbar.refresh()
+            
+            # 单行超限：先保存当前块，再按句子分割长行
             if line_tokens > Config.MAX_TOKEN_LEN:
-                if current_chunk:
-                    chunks.append(current_chunk)
-                    current_chunk = ""
-                    current_tokens = 0
-                
-                # 按句子分割长行
+                _write_chunk(current_lines)
+                current_lines = []
+                current_tokens = 0
                 sentences = self._split_long_line(line)
                 for sentence in sentences:
-                    chunks.append(sentence)
+                    tmp.write(json.dumps(sentence, ensure_ascii=False) + '\n')
+                    total_chunks += 1
                 i += 1
                 continue
             
-            # 如果添加当前行不会超过限制
+            # 可以加入当前块
             if current_tokens + line_tokens + 1 <= Config.MAX_TOKEN_LEN:
-                current_chunk += line + "\n"
+                current_lines.append(line)
                 current_tokens += line_tokens + 1
                 i += 1
             else:
-                # 当前块已满，保存并开始新块
-                if current_chunk:
-                    chunks.append(current_chunk.rstrip())
+                # 块满，保存当前块
+                _write_chunk(current_lines)
                 
-                # 为保持上下文，添加重叠内容
+                # 重叠上下文
                 overlap_lines = []
                 temp_tokens = 0
-                j = max(0, i - 5)  # 最多回溯5行
-                
+                j = max(0, i - 5)
                 while j < i and temp_tokens < Config.COVER_CONTENT:
-                    line_j = cleaned_lines[j]
-                    tokens_j = len(self.encoder.encode(line_j))
+                    tokens_j = line_tokens_list[j]
                     if temp_tokens + tokens_j <= Config.COVER_CONTENT:
-                        overlap_lines.append(line_j)
+                        overlap_lines.append(cleaned_lines[j])
                         temp_tokens += tokens_j
                     j += 1
                 
-                current_chunk = "\n".join(overlap_lines) + "\n"
-                current_tokens = temp_tokens
+                # 关键修复：重叠后检查能否加入当前行，否则放弃重叠避免死循环
+                if temp_tokens + line_tokens + 1 <= Config.MAX_TOKEN_LEN:
+                    current_lines = overlap_lines
+                    current_tokens = temp_tokens
+                    # i 不变，下一轮同一行可加入重叠后的新块
+                else:
+                    # 重叠内容太多导致当前行无法加入 → 放弃重叠，直接开始新块
+                    current_lines = [line]
+                    current_tokens = line_tokens + 1
+                    i += 1
         
-        # 添加最后一个块
-        if current_chunk:
-            chunks.append(current_chunk.rstrip())
+        # 最后一个块
+        _write_chunk(current_lines)
+        pbar.n = total_lines
+        pbar.set_postfix({'块数': total_chunks})
+        pbar.close()
+        tmp.close()
         
-        logger.info(f"文本分块完成：共 {len(chunks)} 个块")
-        return chunks
+        # 释放分块中间数据，强制 GC
+        del cleaned_lines
+        del line_tokens_list
+        gc.collect()
+        
+        logger.info(f"文本分块完成：共 {total_chunks} 个块")
+        return chunks_file, total_chunks
+    
+    def _iter_chunks_from_file(self, chunks_file: str):
+        """从临时文件逐块读取（生成器，不一次性加载全部）"""
+        with open(chunks_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                yield json.loads(line)
     
     def _split_long_line(self, long_line: str) -> List[str]:
         """将长行按句子分割"""
@@ -440,7 +498,7 @@ class DialogueExtractor:
     
     def extract_dialogues(self, file_path: str, output_file: Optional[str] = None) -> str:
         """
-        从文本文件中提取对话
+        从文本文件中提取对话（单线程，低内存版）
         
         Args:
             file_path: 输入文本文件路径
@@ -449,18 +507,22 @@ class DialogueExtractor:
         Returns:
             输出文件路径
         """
+        import gc
+        
         logger.info(f"开始处理文件: {file_path}")
         
         # 读取文本文件
         text = self._read_text_file(file_path)
         
-        # 文本分块
-        chunks = self._chunk_text(text)
+        # 流式分块
+        chunks_file, total_chunks = self._chunk_text(text)
+        del text
+        gc.collect()
         
         # 检查是否有进度可以恢复
         processed_chunks = self._load_progress(file_path) or 0
         if processed_chunks > 0:
-            logger.info(f"恢复进度：已处理 {processed_chunks}/{len(chunks)} 个块")
+            logger.info(f"恢复进度：已处理 {processed_chunks}/{total_chunks} 个块")
         
         # 生成系统提示
         system_prompt = self._generate_system_prompt()
@@ -470,11 +532,11 @@ class DialogueExtractor:
             file_name = Path(file_path).stem
             output_file = f"{file_name}_dialogues.{Config.OUTPUT_FORMAT}"
         
-        # 处理每个文本块
+        # 逐块处理（从临时文件流式读取）
         total_dialogues = 0
         
-        with tqdm(total=len(chunks), desc="提取对话", initial=processed_chunks) as pbar:
-            for i, chunk in enumerate(chunks):
+        with tqdm(total=total_chunks, desc="提取对话", initial=processed_chunks) as pbar:
+            for i, chunk in enumerate(self._iter_chunks_from_file(chunks_file)):
                 if i < processed_chunks:
                     continue
                 
@@ -514,7 +576,7 @@ class DialogueExtractor:
                     total_dialogues += len(unique_dialogues)
                     
                     # 保存进度
-                    self._save_progress(file_path, i + 1, len(chunks))
+                    self._save_progress(file_path, i + 1, total_chunks)
                     
                     # 更新进度条
                     pbar.set_postfix({
@@ -535,12 +597,18 @@ class DialogueExtractor:
             except:
                 pass
         
+        # 清理临时文件
+        try:
+            os.unlink(chunks_file)
+        except Exception:
+            pass
+        
         logger.info(f"处理完成！共提取 {total_dialogues} 条对话，保存到: {output_file}")
         return output_file
     
     def extract_dialogues_concurrent(self, file_path: str, output_file: Optional[str] = None) -> str:
         """
-        使用多线程并发从文本文件中提取对话
+        使用多线程并发从文本文件中提取对话（低内存版）
         
         Args:
             file_path: 输入文本文件路径
@@ -549,14 +617,19 @@ class DialogueExtractor:
         Returns:
             输出文件路径
         """
+        import gc
+        
         logger.info(f"开始并发处理文件: {file_path}")
         
         # 读取文本文件
         text = self._read_text_file(file_path)
         
-        # 文本分块
-        chunks = self._chunk_text(text)
-        logger.info(f"文本分块完成：共 {len(chunks)} 个块，将使用 {self.max_workers} 个线程并发处理")
+        # 流式分块（写入临时文件，不占内存）
+        chunks_file, total_chunks = self._chunk_text(text)
+        del text
+        gc.collect()
+        
+        logger.info(f"文本分块完成：共 {total_chunks} 个块，将使用 {self.max_workers} 个线程并发处理")
         
         # 生成系统提示
         system_prompt = self._generate_system_prompt()
@@ -569,11 +642,10 @@ class DialogueExtractor:
         # 创建线程安全的提取器
         thread_safe_extractor = ThreadSafeDialogueExtractor(self, self.include_chunk_id)
         
-        # 准备工作队列
-        work_items = [
-            WorkItem(index=i, chunk_id=i, chunk=chunk, system_prompt=system_prompt)
-            for i, chunk in enumerate(chunks)
-        ]
+        # 从临时文件读取 chunks 创建工作队列
+        work_items = []
+        for i, chunk in enumerate(self._iter_chunks_from_file(chunks_file)):
+            work_items.append(WorkItem(index=i, chunk_id=i, chunk=chunk, system_prompt=system_prompt))
         
         # 使用线程池并发处理
         total_dialogues = 0
@@ -630,10 +702,16 @@ class DialogueExtractor:
         # 处理所有剩余的结果
         self._flush_remaining_results(results_buffer, output_file)
         
+        # 清理临时文件
+        try:
+            os.unlink(chunks_file)
+        except Exception:
+            pass
+        
         # 输出错误汇总
         if thread_safe_extractor.errors:
             logger.warning(f"处理过程中发生 {len(thread_safe_extractor.errors)} 个错误")
-            for error in thread_safe_extractor.errors[:5]:  # 只显示前5个错误
+            for error in thread_safe_extractor.errors[:5]:
                 logger.warning(f"  - {error}")
             if len(thread_safe_extractor.errors) > 5:
                 logger.warning(f"  - ... 还有 {len(thread_safe_extractor.errors) - 5} 个错误")
@@ -942,8 +1020,13 @@ def main():
             for role, count in sorted(stats['role_distribution'].items(), key=lambda x: x[1], reverse=True):
                 print(f"  {role}: {count} 条")
         
+    except KeyboardInterrupt:
+        logger.warning("用户中断程序")
+        print("\n⚠️ 已手动中断，已处理的部分已保存到输出文件，可重新运行继续处理")
+        return 1
     except Exception as e:
-        logger.error(f"程序执行失败: {e}")
+        import traceback
+        logger.error(f"程序执行失败: {e}\n{traceback.format_exc()}")
         return 1
     
     return 0
